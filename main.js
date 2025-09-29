@@ -1,7 +1,5 @@
-// Import THREE.js library
-
-import * as THREE from "https://cdn.skypack.dev/three@0.154.0/build/three.module.js";
-import { GLTFLoader } from "https://cdn.skypack/three@0.154.0/examples/jsm/loaders/GLTFLoader.js";
+import * as THREE from './lib/three.module.js';
+import { GLTFLoader } from './lib/GLTFLoader.js';
 
 let scene, camera, renderer;
 let model;
@@ -10,7 +8,7 @@ let animationStarted = false;
 const playButton = document.getElementById('playBtn');
 const howToButton = document.getElementById('menu');
 
-// Verify buttons exist
+// Verify buttons
 if (!playButton || !howToButton) {
   console.error('Button not found: playBtn or menu');
   alert('Button not found. Check HTML IDs.');
@@ -19,7 +17,7 @@ if (!playButton || !howToButton) {
 // Load model
 const loader = new GLTFLoader();
 loader.load(
-  '/Frank_Richter_Project_2/models/model.gltf', // Replace <your-repo-name> with your repo name
+  '/Frank_Richter_Project_2/models/model.gltf', // Adjust if your repo name differs
   (gltf) => {
     model = gltf.scene;
     model.scale.set(1, 1, 1);
@@ -51,7 +49,7 @@ playButton.addEventListener('click', () => {
 
     // Camera
     camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-    camera.position.z = 10; // Increased for visibility
+    camera.position.z = 10;
 
     // Renderer
     try {
