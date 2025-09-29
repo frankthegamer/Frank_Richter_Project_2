@@ -1,7 +1,8 @@
-import * as THREE from 'https://unpkg.com/three@0.152.2/build/three.module.js';
-import { PointerLockControls } from 'https://unpkg.com/three@0.152.2/examples/jsm/controls/PointerLockControls.js';
-import { GLTFLoader } from 'https://unpkg.com/three@0.152.2/examples/jsm/loaders/GLTFLoader.js';
-import * as CANNON from "https://cdn.skypack.dev/cannon-es";
+import * as THREE from './lib/three.module.js';
+import { GLTFLoader } from './lib/GLTFLoader.js';
+import { PointerLockControls } from './lib/PointerLockControls.js';
+import * as CANNON from './lib/cannon-es.module.js';
+
 
 
     // Basic global state
