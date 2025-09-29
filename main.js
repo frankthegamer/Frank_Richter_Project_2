@@ -33,17 +33,15 @@ function animate() {
 }
 
 // ----- Play Button Event -----
-const playButton = document.getElementById('playBtn');
-playButton.addEventListener('click', (e) => {
-  e.preventDefault();
-  if (!animationStarted) {
+document.addEventListener('DOMContentLoaded', () => {
+  const playButton = document.getElementById('playBtn');
+  playButton.addEventListener('click', () => {
     console.log('Game started!');
-    animationStarted = true;
-    animate(); // start the scene
-  }
+  });
 });
 
-// ----- How to Play Button (optional) -----
+
+// ----- How to Button (optional) -----
 const howToButton = document.getElementById('menu');
 howToButton.addEventListener('click', (e) => {
   e.preventDefault();
