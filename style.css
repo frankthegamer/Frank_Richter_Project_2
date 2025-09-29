@@ -1,0 +1,102 @@
+body {
+font-family: 'Segoe UI', sans-serif;
+background: #cad5e3;
+margin: 0;
+color: #2c3e50;
+}
+
+
+/* Header */
+header {
+padding: 0.75rem 1.5rem;
+font-size: 50px
+}
+
+
+/* Nav container */
+.nav {
+display: flex;
+flex-direction: column;
+align-items: center;
+gap: 24px;
+margin-top: 100px;
+}
+
+
+/* Nav links styled as buttons */
+.nav .button {
+background: rgb(10, 111, 189);
+border: 2px solid white;
+color: white;
+font-size: 16px;
+padding: 8px 14px;
+border-radius: 6px;
+cursor: pointer;
+transition: background-color 0.5s ease, transform 0.05s ease;
+text-decoration: none;
+width: 200px;
+text-align: center;
+font-weight: bolder;
+font-size: large;
+}
+
+
+/* Hover effect */
+.nav .button:hover {
+background-color: rgba(20, 0, 131, 0.586);
+}
+
+
+/* Active press */
+.nav .button:active {
+transform: translateY(5px);
+}
+
+
+/* Main container */
+.container {
+max-width: 1110px;
+margin: 40px auto;
+padding: 0 16px;
+position: relative;
+}
+
+
+/* Cards */
+.card {
+padding: 20px;
+border-radius: 12px;
+margin-bottom: 20px;
+}
+
+
+.card.intro-card {
+margin: 0 0 20px 0;
+padding: 14px 18px;
+display: flex;
+align-items: flex-start;
+gap: 16px;
+justify-content: center;
+}
+
+
+
+
+h1 { 
+    margin: 50px 0 0px; 
+    font-size: 50px;
+}
+.subtitle { 
+    color: rgb(58, 58, 58); 
+} 
+
+
+/* Canvas fills screen behind UI */
+canvas {
+position: fixed;
+top: 0; left: 0;
+width: 100vw;
+height: 100vh;
+z-index: -1;
+}
+
