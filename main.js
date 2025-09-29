@@ -1,33 +1,52 @@
-// main.js
 import { scene, camera, renderer } from './scene.js';
 import { GLTFLoader } from 'https://unpkg.com/three@0.154.0/examples/jsm/loaders/GLTFLoader.js';
 
-// Load GLB model
-const loader = new GLTFLoader();
-let model; // store reference to animate later
+let model; // reference to your 3D model
+let animationStarted = false;
 
+// ----- Load GLB Model (can load ahead of time) -----
+const loader = new GLTFLoader();
 loader.load(
   './models/model.gltf',
   (gltf) => {
     model = gltf.scene;
     model.scale.set(1, 1, 1);
     model.position.set(0, 0, 0);
-    scene.add(model);
   },
   (xhr) => console.log(`Loading: ${(xhr.loaded / xhr.total * 100).toFixed(2)}%`),
-  (error) => console.error('Error loading GLB:', error)
+  (error) => console.error('Error loading file:', error)
 );
 
-// Animation loop
+// ----- Animation Loop -----
 function animate() {
   requestAnimationFrame(animate);
 
-  // Optional: rotate the model if loaded
   if (model) {
     model.rotation.y += 0.01;
     model.rotation.x += 0.01;
+    if (!scene.children.includes(model)) {
+      scene.add(model); // add model when scene starts
+    }
   }
 
   renderer.render(scene, camera);
 }
-animate();
+
+// ----- Play Button Event -----
+const playButton = document.getElementById('playBtn');
+playButton.addEventListener('click', (e) => {
+  e.preventDefault();
+  if (!animationStarted) {
+    console.log('Game started!');
+    animationStarted = true;
+    animate(); // start the scene
+  }
+});
+
+// ----- How to Play Button (optional) -----
+const howToButton = document.getElementById('menu');
+howToButton.addEventListener('click', (e) => {
+  e.preventDefault();
+  console.log('How to Play clicked!');
+  // TODO: show instructions overlay
+});
