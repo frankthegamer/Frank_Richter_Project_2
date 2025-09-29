@@ -1,7 +1,8 @@
 import * as THREE from './lib/three.module.js';
 import { GLTFLoader } from './lib/GLTFLoader.js';
 import { PointerLockControls } from './lib/PointerLockControls.js';
-import * as CANNON from './lib/cannon-es.module.js';
+import * as CANNON from './lib/cannon-es.js';
+import { BufferGeometryUtils } from './lib/BufferGeometryUtils.js';
 
 
 
