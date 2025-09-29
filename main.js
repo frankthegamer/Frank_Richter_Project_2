@@ -1,5 +1,5 @@
-import * as THREE from './lib/three.module.js';
-import { GLTFLoader } from './lib/GLTFLoader.js';
+import * as THREE from '/lib/three.module.js';
+import { GLTFLoader } from '/lib/GLTFLoader.js';
 
 let scene, camera, renderer;
 let model;
@@ -17,7 +17,7 @@ if (!playButton || !howToButton) {
 // Load model
 const loader = new GLTFLoader();
 loader.load(
-  '/Frank_Richter_Project_2/models/model.gltf', // Adjust if your repo name differs
+  '/Frank_Richter_Project_2/models/model.gltf', // Adjust based on your GitHub Pages URL
   (gltf) => {
     model = gltf.scene;
     model.scale.set(1, 1, 1);
