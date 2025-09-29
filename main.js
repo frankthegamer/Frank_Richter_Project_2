@@ -1,5 +1,7 @@
-import * as THREE from 'https://unpkg.com/three@0.154.0/build/three.module.js';
-import { GLTFLoader } from 'https://unpkg.com/three@0.154.0/examples/jsm/loaders/GLTFLoader.js';
+// Import THREE.js library
+
+import * as THREE from "https://cdn.skypack.dev/three@0.154.0/build/three.module.js";
+import { GLTFLoader } from "https://cdn.skypack/three@0.154.0/examples/jsm/loaders/GLTFLoader.js";
 
 let scene, camera, renderer;
 let model;
