@@ -1,3 +1,6 @@
+console.log("main.js loaded ✅");
+
+
 import { createScene } from './scene.js';
 import { createRenderer } from './renderer.js';
 
