@@ -5,25 +5,32 @@ let scene, camera, renderer;
 let model;
 let animationStarted = false;
 
-// Button references
 const playButton = document.getElementById('playBtn');
 const howToButton = document.getElementById('menu');
 
 // Preload model
 const loader = new GLTFLoader();
 loader.load(
-  './models/model.gltf', // Make sure the path is correct & case-sensitive
+  '/models/model.gltf', // Replace <your-repo-name> with your actual repo name, e.g., '/my-3d-project/models/model.gltf'
   (gltf) => {
     model = gltf.scene;
     model.scale.set(1, 1, 1);
     model.position.set(0, 0, 0);
-    console.log('Model loaded');
+    console.log('Model loaded successfully');
+    // Debug model size
+    const box = new THREE.Box3().setFromObject(model);
+    console.log('Model bounding box:', box);
+    if (animationStarted) {
+      scene.add(model);
+    }
   },
   (xhr) => console.log(`Loading: ${(xhr.loaded / xhr.total * 100).toFixed(2)}%`),
-  (error) => console.error('Error loading model:', error)
+  (error) => {
+    console.error('Error loading model:', error);
+    alert('Failed to load model. Check console for details.');
+  }
 );
 
-// Play button starts the scene
 playButton.addEventListener('click', () => {
   if (!animationStarted) {
     animationStarted = true;
@@ -47,8 +54,12 @@ playButton.addEventListener('click', () => {
     directional.position.set(5, 5, 5);
     scene.add(directional);
 
-    // Add model when ready
-    if (model) scene.add(model);
+    // Add model if already loaded
+    if (model) {
+      scene.add(model);
+    } else {
+      console.log('Model not yet loaded, will add when ready');
+    }
 
     // Handle resize
     window.addEventListener('resize', () => {
@@ -61,12 +72,10 @@ playButton.addEventListener('click', () => {
   }
 });
 
-// How to Play button
 howToButton.addEventListener('click', () => {
   console.log('How to Play clicked!');
 });
 
-// Animation loop
 function animate() {
   requestAnimationFrame(animate);
   if (model) {
