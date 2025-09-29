@@ -3,7 +3,7 @@ import * as THREE from 'https://unpkg.com/three@0.154.0/build/three.module.js';
 
 export function createScene() {
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x0b1020);
+scene.background = new THREE.Color(0x2DCFE0);
 
 
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
