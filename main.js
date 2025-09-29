@@ -1,40 +1,33 @@
-console.log("main.js loaded ✅");
+// main.js
+import { scene, camera, renderer } from './scene.js';
+import { GLTFLoader } from 'https://unpkg.com/three@0.154.0/examples/jsm/loaders/GLTFLoader.js';
 
+// Load GLB model
+const loader = new GLTFLoader();
+let model; // store reference to animate later
 
-import { createScene } from './scene.js';
-import { createRenderer } from './renderer.js';
+loader.load(
+  './models/model.gltf',
+  (gltf) => {
+    model = gltf.scene;
+    model.scale.set(1, 1, 1);
+    model.position.set(0, 0, 0);
+    scene.add(model);
+  },
+  (xhr) => console.log(`Loading: ${(xhr.loaded / xhr.total * 100).toFixed(2)}%`),
+  (error) => console.error('Error loading GLB:', error)
+);
 
-
-const menu = document.getElementById('menu');
-const playBtn = document.getElementById('playBtn');
-
-
-let started = false;
-playBtn.addEventListener('click', (e) => {
-e.preventDefault();
-if(started) return;
-started = true;
-
-
-// hide menu with animation
-menu.classList.add('hidden');
-
-
-// wait for animation to finish then start the scene
-setTimeout(() => startScene(), 520);
-});
-
-
-function startScene() {
-const { scene, camera } = createScene();
-const renderer = createRenderer();
-renderer.camera = camera;
-document.body.appendChild(renderer.domElement);
-
-
+// Animation loop
 function animate() {
-requestAnimationFrame(animate);
-renderer.render(scene, camera);
+  requestAnimationFrame(animate);
+
+  // Optional: rotate the model if loaded
+  if (model) {
+    model.rotation.y += 0.01;
+    model.rotation.x += 0.01;
+  }
+
+  renderer.render(scene, camera);
 }
 animate();
-}
