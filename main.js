@@ -8,20 +8,19 @@ let animationStarted = false;
 const playButton = document.getElementById('playBtn');
 const howToButton = document.getElementById('menu');
 
-// Preload model
 const loader = new GLTFLoader();
 loader.load(
-  '/models/model.gltf', // Replace <your-repo-name> with your actual repo name, e.g., '/my-3d-project/models/model.gltf'
+  '/Frank_Richter_Project_2/models/model.gltf', // Replace with your repo name
   (gltf) => {
     model = gltf.scene;
     model.scale.set(1, 1, 1);
     model.position.set(0, 0, 0);
     console.log('Model loaded successfully');
-    // Debug model size
     const box = new THREE.Box3().setFromObject(model);
     console.log('Model bounding box:', box);
     if (animationStarted) {
       scene.add(model);
+      console.log('Model added to scene');
     }
   },
   (xhr) => console.log(`Loading: ${(xhr.loaded / xhr.total * 100).toFixed(2)}%`),
@@ -32,11 +31,11 @@ loader.load(
 );
 
 playButton.addEventListener('click', () => {
+  console.log('Play button clicked!');
   if (!animationStarted) {
     animationStarted = true;
     console.log('Game started!');
 
-    // Scene setup
     scene = new THREE.Scene();
     scene.background = new THREE.Color(0x0b1020);
 
@@ -47,21 +46,19 @@ playButton.addEventListener('click', () => {
     renderer.setSize(window.innerWidth, window.innerHeight);
     document.body.appendChild(renderer.domElement);
 
-    // Lights
     const ambient = new THREE.AmbientLight(0xffffff, 0.5);
     scene.add(ambient);
     const directional = new THREE.DirectionalLight(0xffffff, 1);
     directional.position.set(5, 5, 5);
     scene.add(directional);
 
-    // Add model if already loaded
     if (model) {
       scene.add(model);
+      console.log('Model added to scene');
     } else {
       console.log('Model not yet loaded, will add when ready');
     }
 
-    // Handle resize
     window.addEventListener('resize', () => {
       camera.aspect = window.innerWidth / window.innerHeight;
       camera.updateProjectionMatrix();
