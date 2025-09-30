@@ -1,7 +1,7 @@
 (async function(){
 
   function loadScript(src){
-    return new Promise((res, rej)=>{
+    return new Promise((res,rej)=>{
       const s = document.createElement('script');
       s.src = src;
       s.onload = ()=>res();
@@ -14,14 +14,16 @@
   await loadScript('./lib/babylonjs.loaders.min.js');
   await loadScript('./lib/cannon.min.js');
 
-  if(document.readyState === 'loading') await new Promise(r=>document.addEventListener('DOMContentLoaded', r));
+  if(document.readyState === 'loading') await new Promise(r=>document.addEventListener('DOMContentLoaded',r));
 
   const playBtn = document.getElementById('playBtn');
   playBtn.addEventListener('click', startGame);
 
   async function startGame(){
+    // Hide menu
     document.querySelectorAll('.card, .nav, .intro-card, .button').forEach(el=>el.style.display='none');
 
+    // Canvas
     const canvas = document.createElement('canvas');
     canvas.id='renderCanvas';
     Object.assign(canvas.style,{position:'fixed',top:'0',left:'0',width:'100%',height:'100%'});
@@ -32,24 +34,25 @@
     scene.clearColor = new BABYLON.Color3(0.52,0.8,0.96);
 
     // Camera
-    const camera = new BABYLON.UniversalCamera('cam', new BABYLON.Vector3(0,1.8,6), scene);
-    camera.attachControl(canvas,true);
+    const camera = new BABYLON.UniversalCamera('cam',new BABYLON.Vector3(0,1.8,6),scene);
     camera.speed = 0.8;
     camera.angularSensibility = 400;
 
-    // Add default keyboard + mouse inputs
+    // Pointer lock for mouse look
+    camera.attachControl(canvas,true);
+    canvas.addEventListener('click',()=>canvas.requestPointerLock());
+
+    // Keyboard + mouse input
     camera.inputs.clear();
     camera.inputs.add(new BABYLON.FreeCameraKeyboardMoveInput());
     camera.inputs.add(new BABYLON.FreeCameraMouseInput());
 
-    canvas.addEventListener('click', ()=> canvas.requestPointerLock?.());
-
+    // Light
     new BABYLON.HemisphericLight('h', new BABYLON.Vector3(0,1,0), scene);
 
     // Physics
-    const gravity = new BABYLON.Vector3(0,-9.82,0);
     const cannonPlugin = new BABYLON.CannonJSPlugin(undefined,undefined,window.CANNON);
-    scene.enablePhysics(gravity,cannonPlugin);
+    scene.enablePhysics(new BABYLON.Vector3(0,-9.82,0),cannonPlugin);
 
     // Ground
     const ground = BABYLON.MeshBuilder.CreateGround('g',{width:300,height:300},scene);
@@ -58,30 +61,18 @@
     const groundMat = new BABYLON.StandardMaterial('groundMat',scene);
     groundMat.diffuseColor = new BABYLON.Color3(0.1,0.6,0.1);
     ground.material = groundMat;
-
     ground.physicsImpostor = new BABYLON.PhysicsImpostor(
       ground,
       BABYLON.PhysicsImpostor.BoxImpostor,
-      {mass:0, restitution:0.2, friction:0.6},
+      {mass:0,restitution:0.2,friction:0.6},
       scene
     );
 
-    // Spawn test box
-    const box = BABYLON.MeshBuilder.CreateBox('box',{size:2},scene);
-    box.position = new BABYLON.Vector3(0,5,0);
-    box.physicsImpostor = new BABYLON.PhysicsImpostor(
-      box,
-      BABYLON.PhysicsImpostor.BoxImpostor,
-      {mass:2, restitution:0.3, friction:0.6},
-      scene
-    );
-
-    // Spawn multiple models example
+    // Objects
     const objects = [];
     const modelFiles = [
-      'models/box.gltf',
+      'models/box.gltf', // add more models here
       'models/tree.glb',
-      // add more models here
     ];
 
     async function loadAndSpawn(url,count=3){
