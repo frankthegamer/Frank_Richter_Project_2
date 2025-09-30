@@ -57,10 +57,27 @@
     camera.inputs.add(new BABYLON.FreeCameraKeyboardMoveInput());
     canvas.addEventListener('click', ()=> canvas.requestPointerLock?.());
 
+    
     new BABYLON.HemisphericLight('h', new BABYLON.Vector3(0,1,0), scene);
+    
+    // ground
     const ground = BABYLON.MeshBuilder.CreateGround('g', {width:300, height:300}, scene);
     ground.position.y = 0;
+   
     ground.receiveShadows = true;
+
+    // ground physics
+    ground.physicsImpostor = new BABYLON.PhysicsImpostor(
+    ground,
+    BABYLON.PhysicsImpostor.BoxImpostor,
+    {mass:0, restitution:0.2, friction: 0.6},
+    scene
+);
+
+    // Simple green color
+    const groundMat = new BABYLON.StandardMaterial("groundMat", scene);
+    groundMat.diffuseColor = new BABYLON.Color3(0.1, 0.6, 0.1); // dark green
+    ground.material = groundMat;
 
     // Physics (Cannon plugin uses window.CANNON)
     const gravity = new BABYLON.Vector3(0, -9.82, 0);
