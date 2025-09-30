@@ -79,7 +79,7 @@
     const modelFiles = [
       'models/tree.glb',
       'models/rock.glb',
-      'models/box.glb'
+      'models/box.gltf'
     ];
 
     async function loadAndSpawn(url, count = 5){
