@@ -1,279 +1,211 @@
-import * as THREE from './lib/three.module.js';
-import { GLTFLoader } from './lib/GLTFLoader.js';
-import { PointerLockControls } from './lib/PointerLockControls.js';
-import * as CANNON from './lib/cannon-es.js';
-import { BufferGeometryUtils } from './lib/BufferGeometryUtils.js';
+// main.js — UMD approach (works with your unchanged menu HTML)
+// Expects: ./lib/babylon.js, ./lib/babylonjs.loaders.min.js, ./lib/cannon.min.js
+(async function(){
 
+  function loadScript(src){
+    return new Promise((res, rej) => {
+      const s = document.createElement('script');
+      s.src = src;
+      s.onload = () => res();
+      s.onerror = (e) => rej(e);
+      document.head.appendChild(s);
+    });
+  }
 
+  // Load local libs (adjust if lib/ is elsewhere)
+  await loadScript('./lib/babylon.js');
+  await loadScript('./lib/babylonjs.loaders.min.js');
+  await loadScript('./lib/cannon.min.js'); // exposes global CANNON
 
-    // Basic global state
-    let scene, camera, renderer, controls, world;
-    let objects = []; // {mesh, body, mass, destructible, health, fragility}
-    let score = 0;
+  // Wait DOM ready
+  if(document.readyState === 'loading') await new Promise(r=>document.addEventListener('DOMContentLoaded', r));
+
+  const playBtn = document.getElementById('playBtn');
+  const howBtn = document.getElementById('menu');
+
+  playBtn.addEventListener('click', startGame);
+  howBtn.addEventListener('click', ()=> alert('Left click: punch/throw. Right click: pick/drop. Move: WASD.'));
+
+  async function startGame(){
+    // hide original menu elements (keeps HTML file unchanged)
+    document.querySelectorAll('.card, .nav, .intro-card, .button').forEach(el => el.style.display = 'none');
+
+    // create canvas and HUD
+    const canvas = document.createElement('canvas');
+    canvas.id = 'renderCanvas';
+    Object.assign(canvas.style, {position:'fixed', top:'0', left:'0', width:'100%', height:'100%'});
+    document.body.appendChild(canvas);
+
+    const hud = document.createElement('div');
+    Object.assign(hud.style, {position:'fixed', left:'12px', top:'12px', color:'#fff', fontFamily:'Arial, sans-serif', zIndex:9999});
+    hud.innerHTML = '<div id="points">Points: 0</div><div id="damage">Damage: x1.00</div><button id="upgrade">Upgrade Damage (+10%) — Cost:100</button>';
+    document.body.appendChild(hud);
     const pointsEl = document.getElementById('points');
-    const dmgEl = document.getElementById('damageMultiplier');
-    const overlay = document.getElementById('overlay');
+    const dmgEl = document.getElementById('damage');
+    const upgradeBtn = document.getElementById('upgrade');
 
-    // Upgrade state
-    let damageMultiplier = 1.0; // base damage multiplier
-    const upgradeCostBase = 100;
+    // Babylon setup
+    const engine = new BABYLON.Engine(canvas, true, {preserveDrawingBuffer:true, stencil:true});
+    const scene = new BABYLON.Scene(engine);
+    scene.clearColor = new BABYLON.Color3(0.52,0.8,0.96);
 
-    // Init renderer, camera, scene
-    function init() {
-      scene = new THREE.Scene();
-      scene.background = new THREE.Color(0x87ceeb);
-      camera = new THREE.PerspectiveCamera(75, innerWidth/innerHeight, 0.1, 2000);
-      renderer = new THREE.WebGLRenderer({antialias:true});
-      renderer.setSize(innerWidth, innerHeight);
-      document.body.appendChild(renderer.domElement);
+    const camera = new BABYLON.UniversalCamera('cam', new BABYLON.Vector3(0, 1.8, 6), scene);
+    camera.attachControl(canvas, true);
+    camera.speed = 0.8;
+    camera.angularSensibility = 400;
+    camera.inputs.clear();
+    camera.inputs.add(new BABYLON.FreeCameraKeyboardMoveInput());
+    canvas.addEventListener('click', ()=> canvas.requestPointerLock?.());
 
-      // Lighting
-      const hemi = new THREE.HemisphereLight(0xffffff, 0x444444, 0.8);
-      hemi.position.set(0,200,0); scene.add(hemi);
-      const dir = new THREE.DirectionalLight(0xffffff, 0.6);
-      dir.position.set(-100,200,100); scene.add(dir);
+    new BABYLON.HemisphericLight('h', new BABYLON.Vector3(0,1,0), scene);
+    const ground = BABYLON.MeshBuilder.CreateGround('g', {width:300, height:300}, scene);
+    ground.position.y = 0;
+    ground.receiveShadows = true;
 
-      // Physics world
-      world = new CANNON.World();
-      world.gravity.set(0,-9.82,0);
-      world.broadphase = new CANNON.SAPBroadphase(world);
-      world.solver.iterations = 10;
+    // Physics (Cannon plugin uses window.CANNON)
+    const gravity = new BABYLON.Vector3(0, -9.82, 0);
+    const cannonPlugin = new BABYLON.CannonJSPlugin(undefined, undefined, window.CANNON);
+    scene.enablePhysics(gravity, cannonPlugin);
+    ground.physicsImpostor = new BABYLON.PhysicsImpostor(ground, BABYLON.PhysicsImpostor.BoxImpostor, {mass:0, restitution:0.2}, scene);
 
-      // Floor
-      const groundMat = new THREE.MeshStandardMaterial({color:0x228B22});
-      const groundGeo = new THREE.PlaneGeometry(2000,2000);
-      const ground = new THREE.Mesh(groundGeo, groundMat);
-      ground.rotation.x = -Math.PI/2; ground.receiveShadow = true; scene.add(ground);
+    // Game state
+    let score = 0;
+    let damageMultiplier = 1.0;
+    const objects = [];
+    pointsEl.textContent = 'Points: 0';
+    dmgEl.textContent = 'Damage: x' + damageMultiplier.toFixed(2);
 
-      const groundBody = new CANNON.Body({ mass: 0 });
-      const groundShape = new CANNON.Plane();
-      groundBody.addShape(groundShape);
-      groundBody.quaternion.setFromEuler(-Math.PI/2,0,0);
-      world.addBody(groundBody);
+    // Update these filenames to match your models in /models/
+    const modelFiles = [
+      'models/tree.glb',
+      'models/rock.glb',
+      'models/box.glb'
+    ];
 
-      // Controls
-      controls = new PointerLockControls(camera, renderer.domElement);
-      controls.getObject().position.set(0,2,5);
-      scene.add(controls.getObject());
+    async function loadAndSpawn(url, count = 5){
+      for(let i=0;i<count;i++){
+        try {
+          const res = await BABYLON.SceneLoader.ImportMeshAsync(null, '', url, scene);
+          const root = res.meshes[0];
+          const mesh = root.clone(root.name + '_' + Math.random().toString(36).slice(2));
+          mesh.rotationQuaternion = null;
+          mesh.position = new BABYLON.Vector3((Math.random()-0.5)*40, 1 + Math.random()*6, (Math.random()-0.5)*40);
+          const s = 0.5 + Math.random()*1.8;
+          mesh.scaling = new BABYLON.Vector3(s,s,s);
 
-      // Simple sky / fog
-      scene.fog = new THREE.Fog(0x87ceeb, 30, 300);
+          const bbox = mesh.getBoundingInfo().boundingBox.extendSize;
+          const approxVol = (bbox.x*2) * (bbox.y*2) * (bbox.z*2);
+          const mass = Math.max(0.1, approxVol * 5);
 
-      window.addEventListener('resize', onWindowResize);
-      window.addEventListener('mousedown', onMouseDown);
-
-      preloadModelsAndSpawn();
-      animate();
-    }
-
-    function onWindowResize(){
-      camera.aspect = innerWidth/innerHeight; camera.updateProjectionMatrix();
-      renderer.setSize(innerWidth, innerHeight);
-    }
-
-    // Simple model loader + random spawner
-    async function preloadModelsAndSpawn(){
-      const loader = new GLTFLoader();
-      const sampleUrls = [
-        'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/Duck/glTF/Duck.gltf',
-        'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/Avocado/glTF/Avocado.gltf'
-      ];
-
-      const gltfs = await Promise.all(sampleUrls.map(url => loader.loadAsync(url)));
-
-      // spawn many objects randomly with properties
-      for(let i=0;i<30;i++){
-        const gltf = gltfs[i % gltfs.length];
-        const model = gltf.scene.clone(true);
-        const scale = 0.4 + Math.random()*1.8;
-        model.scale.setScalar(scale);
-        model.position.set((Math.random()-0.5)*40, 2 + Math.random()*6, (Math.random()-0.5)*40);
-        scene.add(model);
-
-        // Approximate bounding box for physics body
-        const box = new THREE.Box3().setFromObject(model);
-        const size = new THREE.Vector3(); box.getSize(size);
-        // Prevent zero sizes
-        size.x = Math.max(0.1, size.x); size.y = Math.max(0.1, size.y); size.z = Math.max(0.1, size.z);
-        const halfExtents = new CANNON.Vec3(size.x/2, size.y/2, size.z/2);
-        const mass = Math.max(0.1, (size.x * size.y * size.z) * 5.0); // heavier bodies for bigger models
-
-        const shape = new CANNON.Box(halfExtents);
-        const body = new CANNON.Body({ mass });
-        body.addShape(shape);
-        body.position.set(model.position.x, model.position.y, model.position.z);
-        body.linearDamping = 0.31;
-        world.addBody(body);
-
-        // destructible properties
-        const fragility = 0.5 + Math.random()*1.5; // lower = tougher, higher = more fragile
-        const baseHealth = Math.max(5, mass * (2.0 / fragility));
-
-        const obj = { mesh: model, body, mass, destructible: true, health: baseHealth, fragility };
-        objects.push(obj);
-
-        // collision listener: compute damage on collide
-        body.addEventListener('collide', (e) => {
-          // estimate impact using relative velocity along normal if available
-          try {
-            const relVel = e.contact.getImpactVelocityAlongNormal();
-            const impact = Math.abs(relVel || body.velocity.length());
-            handleImpact(obj, impact, e);
-          } catch(err){
-            const impact = body.velocity.length();
-            handleImpact(obj, impact, e);
-          }
-        });
+          mesh.physicsImpostor = new BABYLON.PhysicsImpostor(mesh, BABYLON.PhysicsImpostor.BoxImpostor, {mass: mass, restitution:0.2, friction:0.6}, scene);
+          const fragility = 0.6 + Math.random()*1.6;
+          const health = Math.max(5, mass * (2.0 / fragility));
+          objects.push({mesh, health, fragility, baseMass:mass, picked:false});
+        } catch(e){
+          console.warn('Failed to load', url, e);
+        }
       }
     }
 
-    function handleImpact(obj, impact, event){
-      if(!obj.destructible) return;
-      // Damage formula: impact * (damageMultiplier) * (fragility factor) * small random
-      const damage = impact * damageMultiplier * (obj.fragility) * (0.2 + Math.random()*0.6);
-      obj.health -= damage;
+    for(const m of modelFiles) await loadAndSpawn(m, 6);
 
-      // Award points proportional to damage
-      const awarded = Math.round(damage * Math.max(1, obj.mass * 0.05));
-      if(awarded > 0) addPoints(awarded);
+    function addPoints(n){ score += Math.max(0, Math.round(n)); pointsEl.textContent = 'Points: ' + score; }
 
-      // Visual feedback: flash scale / tint
-      flashObject(obj);
-
-      if(obj.health <= 0){
-        // mark as destroyed (not removed — just change behavior)
-        obj.destructible = false;
-        // reduce mass so it reacts more (or we could make it heavier depending on design)
-        obj.body.mass = Math.max(0.01, obj.mass * 0.2);
-        obj.body.updateMassProperties();
-        // make it visually "broken" — here simply dim it and scale a bit
-        obj.mesh.traverse(node=>{ if(node.material) node.material.opacity = 0.8; });
-        obj.mesh.scale.multiplyScalar(0.9);
-        addPoints(50); // bonus for destroying
-      }
+    function pickFirstMesh(max = 8){
+      const origin = camera.position;
+      const forward = camera.getFrontPosition(max).subtract(camera.position);
+      const ray = new BABYLON.Ray(origin, forward.normalize(), max);
+      const pick = scene.pickWithRay(ray, (m)=> objects.some(o=>o.mesh === m || (m.parent && o.mesh === m.parent)));
+      return pick && pick.pickedMesh ? pick : null;
     }
 
-    // Visual flash implementation
-    function flashObject(obj){
-      const origScale = obj.mesh.scale.clone();
-      // quick scale punch
-      const t0 = performance.now();
-      const dur = 200;
-      const start = origScale.clone();
-      const target = origScale.clone().multiplyScalar(1.12);
-      const tick = ()=>{
-        const now = performance.now();
-        const p = Math.min(1,(now - t0)/dur);
-        obj.mesh.scale.lerpVectors(start, target, 1 - Math.abs(0.5 - p)*2);
-        if(p < 1) requestAnimationFrame(tick);
-        else obj.mesh.scale.copy(origScale);
-      };
-      tick();
-    }
-
-    // Input: punch / pickup / throw
     let carried = null;
-    function onMouseDown(e){
-      if(e.button === 0) { // left click - punch / interact
+    canvas.addEventListener('pointerdown', (evt) => {
+      if(evt.button === 0){
         if(carried){
-          // throw with forward impulse scaled by damage multiplier
-          const dir = new THREE.Vector3(); controls.getDirection(dir);
-          const forceScalar = 18 * (carried.mass || 1) * damageMultiplier;
-          const force = dir.multiplyScalar(forceScalar);
-          carried.body.type = CANNON.Body.DYNAMIC;
-          carried.body.applyImpulse(new CANNON.Vec3(force.x, force.y + 2, force.z), carried.body.position);
+          const forward = camera.getForwardRay(1).direction.normalize();
+          const force = forward.scale(25 * damageMultiplier * (carried.physicsImpostor.getParam ? carried.physicsImpostor.getParam('mass') : (carried.physicsImpostor.mass || 1)));
+          carried.physicsImpostor.applyImpulse(force, carried.getAbsolutePosition());
+          const s = objects.find(o=>o.mesh===carried);
+          if(s) s.picked = false;
           carried = null;
         } else {
-          // raycast to find nearest object in front
-          const raycaster = new THREE.Raycaster();
-          const origin = controls.getObject().position.clone();
-          const forward = new THREE.Vector3(); controls.getDirection(forward);
-          raycaster.set(origin, forward);
-          const intersects = raycaster.intersectObjects(objects.map(o=>o.mesh), true);
-          if(intersects.length){
-            const pickedMesh = intersects[0].object;
-            const obj = objects.find(o=>o.mesh === pickedMesh || o.mesh.children.includes(pickedMesh));
+          const p = pickFirstMesh(6);
+          if(p){
+            const mesh = p.pickedMesh;
+            const obj = objects.find(o=>o.mesh === mesh || (mesh.parent && o.mesh === mesh.parent));
             if(obj){
-              // apply an impulse to the body (punch)
-              const impulse = new CANNON.Vec3(forward.x*6*obj.mass*damageMultiplier, forward.y*6*obj.mass*damageMultiplier + 2, forward.z*6*obj.mass*damageMultiplier);
-              obj.body.applyImpulse(impulse, obj.body.position);
-              // award points based on impulse magnitude
-              const added = Math.round( (impulse.length() / 5) * (obj.mass) );
-              addPoints(added);
+              const forward = camera.getForwardRay(1).direction.normalize();
+              const impulse = forward.scale(10 * obj.baseMass * damageMultiplier);
+              mesh.physicsImpostor.applyImpulse(impulse, mesh.getAbsolutePosition());
+              const impactMag = impulse.length();
+              const dmg = impactMag * damageMultiplier * obj.fragility * (0.15 + Math.random()*0.6);
+              obj.health -= dmg;
+              addPoints(dmg * Math.max(0.5, obj.baseMass*0.02));
+              flash(mesh);
+              if(obj.health <= 0){
+                addPoints(50);
+                mesh.physicsImpostor.setMass(Math.max(0.01, obj.baseMass * 0.15));
+                if(mesh.material) mesh.material.alpha = 0.9;
+              }
             }
           }
         }
-      } else if(e.button === 2) { // right click - pick up
-        e.preventDefault();
+      } else if(evt.button === 2){
+        evt.preventDefault();
         if(!carried){
-          const origin = controls.getObject().position.clone();
-          const forward = new THREE.Vector3(); controls.getDirection(forward);
-          const raycaster = new THREE.Raycaster(origin, forward, 0, 4);
-          const intersects = raycaster.intersectObjects(objects.map(o=>o.mesh), true);
-          if(intersects.length){
-            const pickedMesh = intersects[0].object;
-            const obj = objects.find(o=>o.mesh === pickedMesh || o.mesh.children.includes(pickedMesh));
+          const p = pickFirstMesh(4);
+          if(p){
+            const mesh = p.pickedMesh;
+            const obj = objects.find(o=>o.mesh === mesh || (mesh.parent && o.mesh === mesh.parent));
             if(obj){
-              carried = obj;
-              obj.body.type = CANNON.Body.KINEMATIC;
-              obj.body.velocity.set(0,0,0);
+              carried = obj.mesh;
+              obj.picked = true;
+              obj.mesh.physicsImpostor.setMass(0.001);
             }
           }
         } else {
-          // drop
-          carried.body.type = CANNON.Body.DYNAMIC;
+          const obj = objects.find(o=>o.mesh === carried);
+          if(obj){ obj.picked = false; carried.physicsImpostor.setMass(obj.baseMass); }
           carried = null;
         }
       }
+    });
+
+    function flash(mesh){
+      const orig = mesh.scaling.clone();
+      const t0 = performance.now();
+      const dur = 220;
+      (function tick(){
+        const p = Math.min(1, (performance.now()-t0)/dur);
+        const factor = 1 + Math.sin(p*Math.PI)*0.18;
+        mesh.scaling = orig.multiplyByFloats(factor, factor, factor);
+        if(p < 1) requestAnimationFrame(tick);
+        else mesh.scaling = orig;
+      })();
     }
 
-    function addPoints(n){ score += n; pointsEl.textContent = 'Points: ' + score; }
-
-    // Animate loop + sync physics
-    const clock = new THREE.Clock();
-    function animate(){
-      requestAnimationFrame(animate);
-      const dt = Math.min(0.02, clock.getDelta());
-      world.step(1/60, dt, 3);
-
-      // sync meshes with physics
-      for(const o of objects){
-        if(o.body.type === CANNON.Body.KINEMATIC && o === carried){
-          const forward = new THREE.Vector3(); controls.getDirection(forward);
-          const target = controls.getObject().position.clone().add(forward.multiplyScalar(2));
-          o.body.position.set(target.x, target.y, target.z);
-          o.mesh.position.copy(o.body.position);
-          o.mesh.quaternion.copy(o.body.quaternion);
-        } else {
-          o.mesh.position.copy(o.body.position);
-          o.mesh.quaternion.copy(o.body.quaternion);
-        }
+    scene.onBeforeRenderObservable.add(()=>{
+      if(carried){
+        const target = camera.position.add(camera.getForwardRay(1).direction.scale(2));
+        carried.physicsImpostor.setLinearVelocity(new BABYLON.Vector3(0,0,0));
+        carried.position = target;
+        carried.physicsImpostor.syncPhysicsBodyWithTransform();
       }
+    });
 
-      renderer.render(scene, camera);
-    }
-
-    // UI hooks for upgrades
-    document.getElementById('upgradeBtn').addEventListener('click', ()=>{
-      const cost = Math.round(upgradeCostBase * Math.pow(1.6, Math.max(0, Math.floor((damageMultiplier - 1)/0.1))));
+    upgradeBtn.addEventListener('click', ()=>{
+      const cost = Math.round(100 * Math.pow(1.6, Math.max(0, Math.round((damageMultiplier-1)/0.1))));
       if(score >= cost){
-        score -= cost; pointsEl.textContent = 'Points: ' + score;
-        damageMultiplier *= 1.10; // +10%
+        score -= cost;
+        damageMultiplier *= 1.10;
+        pointsEl.textContent = 'Points: ' + score;
         dmgEl.textContent = 'Damage: x' + damageMultiplier.toFixed(2);
-      } else {
-        alert('Not enough points — need ' + cost);
-      }
+      } else alert('Not enough points: need ' + cost);
     });
 
-    // Hook up UI
-    document.getElementById('playBtn').addEventListener('click', ()=>{
-      overlay.style.display = 'none';
-      controls.lock();
-      if(!scene) init();
-    });
-    document.getElementById('howBtn').addEventListener('click', ()=>{
-      alert('Left click: punch / throw held object. Right click: pick up (hold), Right click again: drop. Move with WASD, mouse to look. Upgrade damage at top-left.');
-    });
+    engine.runRenderLoop(()=> scene.render());
+    window.addEventListener('resize', ()=> engine.resize());
+  } // end startGame
 
-    // Prevent default context menu for canvas
-    window.addEventListener('contextmenu', e => e.preventDefault());
+})(); // end IIFE
