@@ -96,30 +96,44 @@ ground.physicsImpostor = new BABYLON.PhysicsImpostor(
       'models/tree.glb'
     ];
 
-    async function loadAndSpawn(url, count = 5){
-      for(let i=0;i<count;i++){
-        try {
-          const res = await BABYLON.SceneLoader.ImportMeshAsync(null, '', url, scene);
-          const root = res.meshes[0];
-          const mesh = root.clone(root.name + '_' + Math.random().toString(36).slice(2));
-          mesh.rotationQuaternion = null;
-          mesh.position = new BABYLON.Vector3((Math.random()-0.5)*40, 1 + Math.random()*6, (Math.random()-0.5)*40);
-          const s = 0.5 + Math.random()*1.8;
-          mesh.scaling = new BABYLON.Vector3(s,s,s);
+    async function loadAndSpawn(url, count = 5) {
+  for (let i = 0; i < count; i++) {
+    try {
+      const res = await BABYLON.SceneLoader.ImportMeshAsync(null, '', url, scene);
+      res.meshes.forEach(mesh => {
+        if (!(mesh instanceof BABYLON.Mesh)) return; // skip transform nodes
 
-          const bbox = mesh.getBoundingInfo().boundingBox.extendSize;
-          const approxVol = (bbox.x*2) * (bbox.y*2) * (bbox.z*2);
-          const mass = Math.max(0.1, approxVol * 5);
+        const clone = mesh.clone(mesh.name + '_' + Math.random().toString(36).slice(2));
+        clone.rotationQuaternion = null;
+        clone.position = new BABYLON.Vector3(
+          (Math.random() - 0.5) * 40,
+          3 + Math.random() * 5, // spawn above ground
+          (Math.random() - 0.5) * 40
+        );
+        const s = 0.5 + Math.random() * 1.5;
+        clone.scaling = new BABYLON.Vector3(s, s, s);
 
-          mesh.physicsImpostor = new BABYLON.PhysicsImpostor(mesh, BABYLON.PhysicsImpostor.BoxImpostor, {mass: mass, restitution:0.2, friction:0.6}, scene);
-          const fragility = 0.6 + Math.random()*1.6;
-          const health = Math.max(5, mass * (2.0 / fragility));
-          objects.push({mesh, health, fragility, baseMass:mass, picked:false});
-        } catch(e){
-          console.warn('Failed to load', url, e);
-        }
-      }
+        const bbox = clone.getBoundingInfo().boundingBox.extendSize;
+        const approxVol = (bbox.x * 2) * (bbox.y * 2) * (bbox.z * 2);
+        const mass = Math.max(0.1, approxVol * 5);
+
+        // Only apply physics to real meshes
+        clone.physicsImpostor = new BABYLON.PhysicsImpostor(
+          clone,
+          BABYLON.PhysicsImpostor.BoxImpostor,
+          { mass: mass, restitution: 0.2, friction: 0.6 },
+          scene
+        );
+
+        const fragility = 0.6 + Math.random() * 1.6;
+        const health = Math.max(5, mass * (2.0 / fragility));
+        objects.push({ mesh: clone, health, fragility, baseMass: mass, picked: false });
+      });
+    } catch (e) {
+      console.warn('Failed to load', url, e);
     }
+  }
+}
 
     for(const m of modelFiles) await loadAndSpawn(m, 6);
 
