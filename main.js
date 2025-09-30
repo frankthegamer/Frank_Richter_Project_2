@@ -33,19 +33,27 @@
     const scene = new BABYLON.Scene(engine);
     scene.clearColor = new BABYLON.Color3(0.52,0.8,0.96);
 
-    // FreeCamera (for WASD + mouse look)
-    const camera = new BABYLON.FreeCamera('cam', new BABYLON.Vector3(0,1.8,6), scene);
-    camera.speed = 0.8;
-    camera.angularSensibility = 400;
+   // Camera
+const camera = new BABYLON.FreeCamera("cam", new BABYLON.Vector3(0,1.8,6), scene);
+camera.speed = 0.8;
+camera.angularSensibility = 400;
 
-    // Attach camera + pointer lock
+// Delay attachControl until next frame to ensure canvas is in DOM
+requestAnimationFrame(() => {
     camera.attachControl(canvas, true);
-    canvas.addEventListener('click', ()=>canvas.requestPointerLock());
 
-    // Keyboard + mouse input (must be added after attachControl)
+    // Clear default inputs and add keyboard + mouse
     camera.inputs.clear();
     camera.inputs.add(new BABYLON.FreeCameraKeyboardMoveInput());
     camera.inputs.add(new BABYLON.FreeCameraMouseInput());
+});
+
+// Pointer lock on click (required)
+canvas.addEventListener("click", () => {
+    if (document.pointerLockElement !== canvas) {
+        canvas.requestPointerLock();
+    }
+});
 
     // Light
     new BABYLON.HemisphericLight('h', new BABYLON.Vector3(0,1,0), scene);
