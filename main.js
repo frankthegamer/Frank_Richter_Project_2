@@ -93,7 +93,7 @@ ground.physicsImpostor = new BABYLON.PhysicsImpostor(
     // Update these filenames to match your models in /models/
     const modelFiles = [
       'models/box.gltf',
-      'tree/box.glb'
+      'models/tree.glb'
     ];
 
     async function loadAndSpawn(url, count = 5){
