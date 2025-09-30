@@ -33,16 +33,16 @@
     const scene = new BABYLON.Scene(engine);
     scene.clearColor = new BABYLON.Color3(0.52,0.8,0.96);
 
-    // Camera
-    const camera = new BABYLON.UniversalCamera('cam',new BABYLON.Vector3(0,1.8,6),scene);
+    // FreeCamera (for WASD + mouse look)
+    const camera = new BABYLON.FreeCamera('cam', new BABYLON.Vector3(0,1.8,6), scene);
     camera.speed = 0.8;
     camera.angularSensibility = 400;
 
-    // Pointer lock for mouse look
-    camera.attachControl(canvas,true);
-    canvas.addEventListener('click',()=>canvas.requestPointerLock());
+    // Attach camera + pointer lock
+    camera.attachControl(canvas, true);
+    canvas.addEventListener('click', ()=>canvas.requestPointerLock());
 
-    // Keyboard + mouse input
+    // Keyboard + mouse input (must be added after attachControl)
     camera.inputs.clear();
     camera.inputs.add(new BABYLON.FreeCameraKeyboardMoveInput());
     camera.inputs.add(new BABYLON.FreeCameraMouseInput());
@@ -71,7 +71,7 @@
     // Objects
     const objects = [];
     const modelFiles = [
-      'models/box.gltf', // add more models here
+      'models/box.gltf',
       'models/tree.glb',
     ];
 
@@ -81,20 +81,25 @@
           const res = await BABYLON.SceneLoader.ImportMeshAsync(null,'',url,scene);
           res.meshes.forEach(mesh=>{
             if(!(mesh instanceof BABYLON.Mesh)) return;
+
             const clone = mesh.clone(mesh.name+'_'+Math.random().toString(36).slice(2));
             clone.rotationQuaternion = null;
+
+            // Spawn above ground
+            const bbox = clone.getBoundingInfo().boundingBox.extendSize;
             clone.position = new BABYLON.Vector3(
               (Math.random()-0.5)*40,
-              3+Math.random()*5,
+              3 + bbox.y + Math.random()*2,
               (Math.random()-0.5)*40
             );
-            const s = 0.5+Math.random()*1.5;
+
+            const s = 0.5 + Math.random()*1.5;
             clone.scaling = new BABYLON.Vector3(s,s,s);
 
-            const bbox = clone.getBoundingInfo().boundingBox.extendSize;
             const approxVol = (bbox.x*2)*(bbox.y*2)*(bbox.z*2);
-            const mass = Math.max(0.1,approxVol*5);
+            const mass = Math.max(0.1, approxVol*5);
 
+            // Use BoxImpostor for performance
             clone.physicsImpostor = new BABYLON.PhysicsImpostor(
               clone,
               BABYLON.PhysicsImpostor.BoxImpostor,
