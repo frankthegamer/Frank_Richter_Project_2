@@ -60,30 +60,28 @@
     
     new BABYLON.HemisphericLight('h', new BABYLON.Vector3(0,1,0), scene);
     
-    // ground
-    const ground = BABYLON.MeshBuilder.CreateGround('g', {width:300, height:300}, scene);
-    ground.position.y = 0;
-   
-    ground.receiveShadows = true;
+// Physics (Cannon plugin uses window.CANNON)
+const gravity = new BABYLON.Vector3(0, -9.82, 0);
+const cannonPlugin = new BABYLON.CannonJSPlugin(undefined, undefined, window.CANNON);
+scene.enablePhysics(gravity, cannonPlugin);
 
-    // ground physics
-    ground.physicsImpostor = new BABYLON.PhysicsImpostor(
+// Ground
+const ground = BABYLON.MeshBuilder.CreateGround('g', {width:300, height:300}, scene);
+ground.position.y = 0;
+ground.receiveShadows = true;
+
+// Simple green material
+const groundMat = new BABYLON.StandardMaterial("groundMat", scene);
+groundMat.diffuseColor = new BABYLON.Color3(0.1, 0.6, 0.1); // dark green
+ground.material = groundMat;
+
+// Create physics impostor **after physics is enabled**
+ground.physicsImpostor = new BABYLON.PhysicsImpostor(
     ground,
     BABYLON.PhysicsImpostor.BoxImpostor,
-    {mass:0, restitution:0.2, friction: 0.6},
+    { mass: 0, restitution: 0.2, friction: 0.6 },
     scene
 );
-
-    // Simple green color
-    const groundMat = new BABYLON.StandardMaterial("groundMat", scene);
-    groundMat.diffuseColor = new BABYLON.Color3(0.1, 0.6, 0.1); // dark green
-    ground.material = groundMat;
-
-    // Physics (Cannon plugin uses window.CANNON)
-    const gravity = new BABYLON.Vector3(0, -9.82, 0);
-    const cannonPlugin = new BABYLON.CannonJSPlugin(undefined, undefined, window.CANNON);
-    scene.enablePhysics(gravity, cannonPlugin);
-    ground.physicsImpostor = new BABYLON.PhysicsImpostor(ground, BABYLON.PhysicsImpostor.BoxImpostor, {mass:0, restitution:0.2}, scene);
 
     // Game state
     let score = 0;
@@ -95,6 +93,7 @@
     // Update these filenames to match your models in /models/
     const modelFiles = [
       'models/box.gltf'
+      'tree/box.gltf'
     ];
 
     async function loadAndSpawn(url, count = 5){
