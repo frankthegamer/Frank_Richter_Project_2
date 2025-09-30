@@ -77,8 +77,6 @@
 
     // Update these filenames to match your models in /models/
     const modelFiles = [
-      'models/tree.glb',
-      'models/rock.glb',
       'models/box.gltf'
     ];
 
